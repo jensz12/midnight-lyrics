@@ -1,16 +1,9 @@
 #!/usr/bin/env node
 require('dotenv').config();
 
-const { TwitterApi, ApiResponseError } = require('twitter-api-v2');
-const twitterClient = new TwitterApi({
-	appKey: process.env.API_KEY,
-	appSecret: process.env.API_SECRET_KEY,
-	accessToken: process.env.ACCESS_TOKEN,
-	accessSecret: process.env.ACCESS_TOKEN_SECRET,
-}).readWrite.v2;
-
 const { Cron } = require('croner');
 const https = require('https');
+const { TwitterApi, ApiResponseError } = require('twitter-api-v2');
 
 // Combine all the songs
 var allSongs = [
@@ -24,32 +17,28 @@ var allSongs = [
 	...require('./songs/heroes.json'),
 ];
 
-function getRandomInt(max) {
+const getRandomInt = (max) => {
 	return Math.floor(Math.random() * max);
 }
 
-// Lyric tweeting bot
-const lyricTweet = async () => {
-	// Special tweet at midnight
+const getPostContent = () => {
+	// Special post at midnight
 	if (new Date().getHours() === 0) {
-		var tweet = 'We are one beating heart';
+		var post = 'We are one beating heart';
 		var reply = '💓';
-	} else {
+	}
+
+	else {
 		// Get a random song from files
 		var randomInt = getRandomInt(allSongs.length - 1);
 		var song = allSongs[randomInt];
-		// then get a random lyric from that song
+		// Then get a random lyric from that song
 		var lyrics = song.lyrics.split('|');
-		var tweet = lyrics[getRandomInt(lyrics.length - 1)];
-		// get spotify id of song
+		var post = lyrics[getRandomInt(lyrics.length - 1)];
+		// Get spotify id of song
 		var id = song.id;
 		var emoji = song.emoji;
 		var reply = song.reply;
-	}
-
-	// Tweet that lyric
-	try {
-		const {data: createdTweet} = await twitterClient.tweet(tweet);
 
 		// If reply is undefined, create one with emoji (if exist) and Spotify link
 		if (reply === undefined) {
@@ -57,28 +46,55 @@ const lyricTweet = async () => {
 				? `${emoji} https://open.spotify.com/track/${id}`
 				: `https://open.spotify.com/track/${id}`;
 		}
-
-		console.log('Tweet sent: ' + createdTweet.text);
-
-		const {data: replyTweet} = await twitterClient.reply(reply, createdTweet.id);
-
-		console.log('Reply sent: ' + replyTweet.text);
 	}
 
-	catch (e) {
-		if (e instanceof ApiResponseError && e.code === 403) {
-			console.log('Tweet with duplicate content detected (error 403) - retrying lyricTweet()');
-			lyricTweet();
-		}
-
-		else
-			console.error(e);
+	return {
+		'post': post,
+		'reply': reply
 	}
 }
 
-// Tweet at every 2 hours
+// Lyric posting bot
+const lyricPost = () => {
+	// Twitter integration
+	if (process.env.TWITTER_ACTIVE == 'true') {
+		const twitterClient = new TwitterApi({
+			appKey: process.env.TWITTER_API_KEY,
+			appSecret: process.env.TWITTER_API_SECRET_KEY,
+			accessToken: process.env.TWITTER_ACCESS_TOKEN,
+			accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+		}).readWrite.v2;
+
+		const lyricTweet = async () => {
+			var tweet = getPostContent();
+
+			// Tweet that lyric
+			try {
+				const {data: createdTweet} = await twitterClient.tweet(tweet.post);
+				console.log('Tweet sent: ' + createdTweet.text);
+
+				const {data: replyTweet} = await twitterClient.reply(tweet.reply, createdTweet.id);
+				console.log('Reply sent: ' + replyTweet.text);
+			}
+
+			catch (e) {
+				if (e instanceof ApiResponseError && e.code === 403) {
+					console.log('Tweet with duplicate content detected (error 403) - retrying lyricTweet()');
+					lyricTweet();
+				}
+
+				else
+					console.error(e);
+			}
+		}
+
+		lyricTweet();
+	}
+}
+
+// Post at every 2 hours
 const lyricJob = Cron('00 */2 * * *', () => {
-	lyricTweet();
+	lyricPost();
 });
 
 // UptimeRobot heartbeat monitoring
@@ -88,5 +104,7 @@ if (process.env.UPTIMEROBOT_HEARTBEAT_URL !== '') {
 	});
 }
 
-var minsUntilNextTweet = Math.ceil(lyricJob.msToNext() / 1000 / 60);
-console.log('Bot has started successfully - ' + minsUntilNextTweet + ' minutes until next tweet.');
+var minsUntilNextPost = Math.ceil(lyricJob.msToNext() / 1000 / 60);
+console.log('Bot has started successfully - ' + minsUntilNextPost + ' minutes until next post.');
+
+lyricPost();
