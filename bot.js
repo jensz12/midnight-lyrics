@@ -106,5 +106,3 @@ if (process.env.UPTIMEROBOT_HEARTBEAT_URL !== '') {
 
 var minsUntilNextPost = Math.ceil(lyricJob.msToNext() / 1000 / 60);
 console.log('Bot has started successfully - ' + minsUntilNextPost + ' minutes until next post.');
-
-lyricPost();
