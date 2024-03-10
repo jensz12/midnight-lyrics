@@ -3,7 +3,6 @@ require('dotenv').config();
 
 const { Cron } = require('croner');
 const https = require('https');
-const { TwitterApi, ApiResponseError } = require('twitter-api-v2');
 
 // Combine all the songs
 var allSongs = [
@@ -56,40 +55,7 @@ const getPostContent = () => {
 
 // Lyric posting bot
 const lyricPost = () => {
-	// Twitter integration
-	if (process.env.TWITTER_ACTIVE == 'true') {
-		const twitterClient = new TwitterApi({
-			appKey: process.env.TWITTER_API_KEY,
-			appSecret: process.env.TWITTER_API_SECRET_KEY,
-			accessToken: process.env.TWITTER_ACCESS_TOKEN,
-			accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
-		}).readWrite.v2;
-
-		const lyricTweet = async () => {
-			var tweet = getPostContent();
-
-			// Tweet that lyric
-			try {
-				const {data: createdTweet} = await twitterClient.tweet(tweet.post);
-				console.log('Tweet sent: ' + createdTweet.text);
-
-				const {data: replyTweet} = await twitterClient.reply(tweet.reply, createdTweet.id);
-				console.log('Reply sent: ' + replyTweet.text);
-			}
-
-			catch (e) {
-				if (e instanceof ApiResponseError && e.code === 403) {
-					console.log('Tweet with duplicate content detected (error 403) - retrying lyricTweet()');
-					lyricTweet();
-				}
-
-				else
-					console.error(e);
-			}
-		}
-
-		lyricTweet();
-	}
+	//TODO: Add new integration.
 }
 
 // Post at every 2 hours

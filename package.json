@@ -5,8 +5,7 @@
 	"main": "bot.js",
 	"dependencies": {
 		"croner": "^6.0.3",
-		"dotenv": "^16.0.3",
-		"twitter-api-v2": "^1.14.2"
+		"dotenv": "^16.0.3"
 	},
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
